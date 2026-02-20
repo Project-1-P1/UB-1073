@@ -1,0 +1,35 @@
+{
+  "name": "civicshield",
+  "version": "1.0.0",
+  "description": "CivicShield - Governance-Aware Resilience & Traffic Orchestration Layer",
+  "main": "server.js",
+  "type": "commonjs",
+  "license": "MIT",
+  "author": "Mahatma Rajiv Kale, Sachin GV , Akshata, Suchitra",
+  "keywords": [
+    "civicshield",
+    "traffic-control",
+    "rate-limiting",
+    "resilience",
+    "governance",
+    "ddos-protection",
+    "token-bucket",
+    "queue-management",
+    "fastify",
+    "infrastructure"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "prod": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "fastify": "^4.27.2",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/cors": "^8.4.0",
+    "dotenv": "^16.4.5"
+  }
+}
