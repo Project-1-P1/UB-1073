@@ -1,5 +1,5 @@
-const engine = require('../engine');
-const policy = require('../policy');
+const engine = require('./engine');
+const policy = require('./policy');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
