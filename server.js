@@ -47,11 +47,6 @@ setInterval(() => {
   eldHistogram.reset();
 }, 5000).unref();
 
-const ENGINE_TIMEOUT_MS = parseInt(process.env.ENGINE_TIMEOUT_MS, 10) || 250;
-const MAX_ENGINE_FAILURES = parseInt(process.env.MAX_ENGINE_FAILURES, 10) || 5;
-const RECOVERY_TIMEOUT_MS = parseInt(process.env.RECOVERY_TIMEOUT_MS, 10) || 60000;
-const MAX_CONCURRENT_REQUESTS = 2; // 🔥 REPLACED AS REQUESTED
-
 let activeRequests = 0;
 
 const engineState = {
@@ -64,6 +59,20 @@ const engineState = {
 // 4. Engine & Policy Integration
 const engine = require('./engine');
 const policy = require('./policy');
+
+const runtimeConfig = {
+  maxConcurrentRequests: 100,
+  maxRps: 50,
+  engineTimeoutMs: 250,
+  maxEngineFailures: 5,
+  recoveryTimeoutMs: 60000
+};
+
+let currentSecondRequests = 0;
+
+setInterval(() => {
+  currentSecondRequests = 0;
+}, 1000);
 
 // ✅ CHANGED: Fixed route imports for flat directory structure
 const adminRoutes = require('./admin');
@@ -88,12 +97,21 @@ const isSystemOverloaded = () => {
   const mem = process.memoryUsage();
   const heapRatio = mem.heapUsed / mem.heapTotal;
   const eventLoopLagMs = eldHistogram.percentile(99) / 1e6;
-  return heapRatio > 0.85 || eventLoopLagMs > 150 || activeRequests >= MAX_CONCURRENT_REQUESTS;
+  return heapRatio > 0.85 || eventLoopLagMs > 150 || activeRequests >= runtimeConfig.maxConcurrentRequests;
 };
 
 // 5. Explicitly Named Hooks for Concurrency Tracking
-const requestCounterHook = async () => {
+const requestCounterHook = async (request, reply) => {
+  currentSecondRequests++;
   activeRequests++;
+
+  if (runtimeConfig.maxRps && currentSecondRequests > runtimeConfig.maxRps) {
+    return reply.code(429).send({ error: 'RPS limit exceeded' });
+  }
+
+  if (runtimeConfig.maxConcurrentRequests && activeRequests > runtimeConfig.maxConcurrentRequests) {
+    return reply.code(503).send({ error: 'Too many concurrent requests' });
+  }
 };
 
 const responseCounterHook = async () => {
@@ -123,7 +141,7 @@ const engineOrchestrationHook = async (request, reply) => {
   // PRIORITY 2: Circuit Breaker Recovery & Bypass
   if (engineState.status === 'DEGRADED') {
     const timeSinceFailure = Date.now() - engineState.lastFailureTime;
-    if (timeSinceFailure > RECOVERY_TIMEOUT_MS) {
+    if (timeSinceFailure > runtimeConfig.recoveryTimeoutMs) {
       engineState.status = 'HALF_OPEN';
       app.log.info('Circuit breaker HALF_OPEN. Testing recovery.');
     } else {
@@ -149,7 +167,7 @@ const engineOrchestrationHook = async (request, reply) => {
       timeoutId = setTimeout(() => {
         abortController.abort();
         reject(new Error('ENGINE_TIMEOUT'));
-      }, ENGINE_TIMEOUT_MS);
+      }, runtimeConfig.engineTimeoutMs);
     });
 
     const decision = await Promise.race([enginePromise, timeoutPromise]);  
@@ -181,7 +199,7 @@ const engineOrchestrationHook = async (request, reply) => {
       
     app.log.error({ err: err.message, reqId: request.id }, 'Engine execution error or timeout');  
 
-    if (engineState.consecutiveFailures >= MAX_ENGINE_FAILURES && engineState.status !== 'DEGRADED') {  
+    if (engineState.consecutiveFailures >= runtimeConfig.maxEngineFailures && engineState.status !== 'DEGRADED') {  
       engineState.status = 'DEGRADED';  
       app.log.fatal('Circuit breaker OPEN. System switched to DEGRADED pass-through mode.');  
     }  
