@@ -78,9 +78,11 @@ try {
 
 app.register(helmet, { global: true });
 
+// 🔥 EXACT FIX APPLIED HERE
 app.register(cors, {
-  origin: process.env.CORS_ORIGIN || false,
+  origin: true, // allow all origins for demo
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-metrics-key'],
 });
 
 // Helper: Hardware/Process Overload Guard
