@@ -1,3 +1,4 @@
+const { runtimeConfig } = require('../server');
 const engine = require('./engine');
 const policy = require('./policy');
 const crypto = require('crypto');
@@ -164,6 +165,29 @@ module.exports = async function adminRoutes(fastify) {
     }
 
     usedNonces.set(reqNonce, now);
+  });
+
+  // 🔥 Added View Config Route
+  fastify.get('/config', async () => {
+    return runtimeConfig;
+  });
+
+  // 🔥 Added Update Config Route
+  fastify.post('/update-config', async (request, reply) => {
+    const updates = request.body;
+
+    Object.keys(updates).forEach(key => {
+      if (runtimeConfig.hasOwnProperty(key)) {
+        runtimeConfig[key] = updates[key];
+      }
+    });
+
+    logAudit('RUNTIME_CONFIG_UPDATED', request.ip, { updates });
+
+    return {
+      status: 'UPDATED',
+      config: runtimeConfig
+    };
   });
 
   fastify.get('/policy', async (request, reply) => {
