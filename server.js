@@ -50,7 +50,7 @@ setInterval(() => {
 const ENGINE_TIMEOUT_MS = parseInt(process.env.ENGINE_TIMEOUT_MS, 10) || 250;
 const MAX_ENGINE_FAILURES = parseInt(process.env.MAX_ENGINE_FAILURES, 10) || 5;
 const RECOVERY_TIMEOUT_MS = parseInt(process.env.RECOVERY_TIMEOUT_MS, 10) || 60000;
-const MAX_CONCURRENT_REQUESTS = parseInt(process.env.MAX_CONCURRENT_REQUESTS, 10) || 5000;
+const MAX_CONCURRENT_REQUESTS = 2; // 🔥 REPLACED AS REQUESTED
 
 let activeRequests = 0;
 
@@ -78,11 +78,9 @@ try {
 
 app.register(helmet, { global: true });
 
-// 🔥 EXACT FIX APPLIED HERE
 app.register(cors, {
-  origin: true, // allow all origins for demo
+  origin: process.env.CORS_ORIGIN || false,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'x-metrics-key'],
 });
 
 // Helper: Hardware/Process Overload Guard
